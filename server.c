@@ -69,10 +69,10 @@ int main(int argc, char** argv){
     }
     char line[sendsize];
     recvfrom(sockfd, line, sendsize, 0, (struct sockaddr*)&clientaddr, &len);
-
+ 
     printf("Got from client: %s\n", line);
     sscanf(line, "%s", line); 
-    
+     
     char* str1;
     str1 = "serverFiles/";
     char* str2 = (char *) malloc(1 + strlen(str1)+strlen(line));
@@ -80,40 +80,32 @@ int main(int argc, char** argv){
     strcat(str2, line);
     sendsize = findFileSize(str2);
     if(sendsize > -1){
-     
       
+       
       int fd;
       fd = open(str2, O_RDONLY | S_IRUSR);
       char buffer[sendsize];
       pread(fd, buffer, sizeof(buffer), 0);
       fprintf(stderr, "sendsize: %d\n", sendsize);  
       sendto(sockfd, &sendsize, sizeof(int), 0, (struct sockaddr*)&clientaddr, len);
-      
+       
       //char temp[1024];
       int index = 0;
       int packNum = 0;
-      int ack = -1;
-      int flag = 0;
-      int notrecv = 0;
-      int ackrecv[1 + ((sendsize -1) / 1024)];
-      for(index = 0; index < sizeof(ackrecv); index++){
-        ackrecv[index] = 0;
-      }
-      index = 0;
+      int ack = 0;
+      int checkpack;
       packet pack;
+      int notrecv = 0;
+      int arrsize = 1 + ((sendsize - 1) / 1024);
+      int ackrecv[arrsize];
       //+1 on ack because packNum increments 1 more than is sent
-      while(index <= sendsize || ack+1 < packNum){
+      while(index <= sendsize || ack+1 < arrsize){
       //fprintf(stderr, "index: %d\n", index); 
-
-        if(ack == -1){
-          flag = 1;
-          ack += flag;
-        }
         if(packNum - ack < 6 && index <= sendsize){
           if(sendsize - index < 1024){
-            memcpy(pack.c, &buffer[index], sendsize-index);
+            memcpy(pack.c, &buffer[packNum * 1024], sendsize-index);
           }else{
-            memcpy(pack.c, &buffer[index], 1024);
+            memcpy(pack.c, &buffer[packNum * 1024], 1024);
           }
           //memcpy(pack.c, buffer+index, 1024);
           //strcpy(pack.c, temp);
@@ -121,47 +113,25 @@ int main(int argc, char** argv){
           sendto(sockfd, &pack, sizeof(pack), 0, (struct sockaddr*)&clientaddr, len);
           index += 1024;
           packNum++;
-          if(flag == 1){
-            ack = -1;
-            flag = 0;
-          }
         }
         recvfrom(sockfd, &ack, sizeof(int), MSG_DONTWAIT, (struct sockaddr*)&clientaddr, &len);
-        if(ack != -1){
-          ackrecv[ack] = 1;
-        }
-        if(ackrecv[notrecv] == 1){
-          notrecv++;
-        }
+        ackrecv[ack] = 1;
+        for(checkpack = 0; checkpack < arrsize; checkpack++){
+          if(ackrecv[checkpack] == 0){
+            notrecv = checkpack;
+            break;
+          }
+        } 
+        if(packNum - ack >=6){
+          packNum = notrecv;
+          index = 1024 * notrecv;
+        }        
 
-        /*        
-        if(packNum - notrecv >= 6){
-	  fprintf(stderr,"REEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEeeeeee %d\n", notrecv);
-          if(sendsize - index < 1024){
-            memcpy(pack.c, &buffer[notrecv * 1024], sendsize-index);
-             }else{
-               memcpy(pack.c, &buffer[notrecv * 1024], 1024);
-             }
-          pack.i = notrecv;
-          sendto(sockfd, &pack, sizeof(pack), 0, (struct sockaddr*)&clientaddr, len);
-          recvfrom(sockfd, &ack, sizeof(int), 0, (struct sockaddr*)&clientaddr, &len);
-          while(ackrecv[ack] == 1){
-            recvfrom(sockfd, &ack, sizeof(int), 0, (struct sockaddr*)&clientaddr, &len);
-          }
-          if(ack != -1){
-            ackrecv[ack] = 1;
-          }
-          if(ackrecv[notrecv] == 1){
-            notrecv++;
-          }
-        }
-        */
-        
-	fprintf(stderr,"notrecv %d\n", notrecv);
-	fprintf(stderr,"last ack received: %d\n", ack);
+ 	fprintf(stderr,"last ack received: %d\n", ack);
 	fprintf(stderr,"last packNum sent: %d\n\n", packNum-1);
         
       }
+      index = ack = notrecv = pack.i = packNum = 0;
       close(fd);
     }else{
       if(strcmp(line, "exit") == 0){
@@ -175,4 +145,4 @@ int main(int argc, char** argv){
   }
 
 }
-
+ 
