@@ -92,11 +92,23 @@ int main(int argc, char** argv){
       //char temp[1024];
       int index = 0;
       int packNum = 0;
-      int ack = 0;
+      int ack = -1;
+      int flag = 0;
+      int notrecv = 0;
+      int ackrecv[1 + ((sendsize -1) / 1024)];
+      for(index = 0; index < sizeof(ackrecv); index++){
+        ackrecv[index] = 0;
+      }
+      index = 0;
       packet pack;
       //+1 on ack because packNum increments 1 more than is sent
       while(index <= sendsize || ack+1 < packNum){
       //fprintf(stderr, "index: %d\n", index); 
+
+        if(ack == -1){
+          flag = 1;
+          ack += flag;
+        }
         if(packNum - ack < 6 && index <= sendsize){
           if(sendsize - index < 1024){
             memcpy(pack.c, &buffer[index], sendsize-index);
@@ -109,8 +121,43 @@ int main(int argc, char** argv){
           sendto(sockfd, &pack, sizeof(pack), 0, (struct sockaddr*)&clientaddr, len);
           index += 1024;
           packNum++;
+          if(flag == 1){
+            ack = -1;
+            flag = 0;
+          }
         }
         recvfrom(sockfd, &ack, sizeof(int), MSG_DONTWAIT, (struct sockaddr*)&clientaddr, &len);
+        if(ack != -1){
+          ackrecv[ack] = 1;
+        }
+        if(ackrecv[notrecv] == 1){
+          notrecv++;
+        }
+
+        /*        
+        if(packNum - notrecv >= 6){
+	  fprintf(stderr,"REEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEeeeeee %d\n", notrecv);
+          if(sendsize - index < 1024){
+            memcpy(pack.c, &buffer[notrecv * 1024], sendsize-index);
+             }else{
+               memcpy(pack.c, &buffer[notrecv * 1024], 1024);
+             }
+          pack.i = notrecv;
+          sendto(sockfd, &pack, sizeof(pack), 0, (struct sockaddr*)&clientaddr, len);
+          recvfrom(sockfd, &ack, sizeof(int), 0, (struct sockaddr*)&clientaddr, &len);
+          while(ackrecv[ack] == 1){
+            recvfrom(sockfd, &ack, sizeof(int), 0, (struct sockaddr*)&clientaddr, &len);
+          }
+          if(ack != -1){
+            ackrecv[ack] = 1;
+          }
+          if(ackrecv[notrecv] == 1){
+            notrecv++;
+          }
+        }
+        */
+        
+	fprintf(stderr,"notrecv %d\n", notrecv);
 	fprintf(stderr,"last ack received: %d\n", ack);
 	fprintf(stderr,"last packNum sent: %d\n\n", packNum-1);
         
