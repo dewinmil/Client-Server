@@ -15,6 +15,12 @@ typedef struct{
 
 } packet;
 
+typedef struct{
+  int i;
+  int key;
+  char c[1024];
+
+} keyPacket;
 
 int main(int argc, char** argv){
   
@@ -55,20 +61,42 @@ int main(int argc, char** argv){
     fprintf(stderr, "Enter a line: ");
     fgets(line, 5000, stdin);
     int filesize = strlen(line)+1;
-    sendto(sockfd, &filesize, sizeof(int), 0, (struct sockaddr*)&serveraddr, len);
-    sendto(sockfd, line, filesize, 0, (struct sockaddr*)&serveraddr, len);
+
+    struct timeval timeout;
+    timeout.tv_sec = 0;
+    timeout.tv_usec = 200000;
+    setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, (char *)&timeout, sizeof(timeout));
+    int flag = 0;
+   
+   keyPacket keypack, requestpack;
+    keypack.i = filesize;
+    keypack.key = 1;
+    strcpy(keypack.c, line);
+
+    sendto(sockfd, &keypack, 1032, 0, (struct sockaddr*)&serveraddr, len);
     printf("Sent to server: %s\n", line);
     if(strcmp(line, "exit\n") == 0){
       return 1;
     }
-    recvfrom(sockfd, &filesize, sizeof(int), 0, (struct sockaddr*)&serveraddr, &len);
-    fprintf(stderr, "filesize: %d\n", filesize);
+    recvfrom(sockfd, &requestpack, 1032, 0, (struct sockaddr*)&serveraddr, &len);
+    if(requestpack.key != 2){
+      recvfrom(sockfd, &requestpack, 1032, 0, (struct sockaddr*)&serveraddr, &len);
+      if(requestpack.key == 2){
+        keypack.key = -2;
+        sendto(sockfd, &keypack, 1032, 0, (struct sockaddr*)&serveraddr, len);
+      }
+      keypack.key = -1;
+      sendto(sockfd, &keypack, 1032, 0, (struct sockaddr*)&serveraddr, len);
+    }
+    flag == 0;
+    while(flag != -1){ 
+      flag = recvfrom(sockfd, &keypack, 1032, 0, (struct sockaddr*)&serveraddr, &len);
+      keypack.key = -2;
+      sendto(sockfd, &keypack, 1032, 0, (struct sockaddr*)&serveraddr, len);
+    }
+    filesize = requestpack.i;
+    fprintf(stderr, "filesize: %d\n", requestpack.i);
 
-    struct timeval timeout;
-    timeout.tv_sec = 1;
-    timeout.tv_usec = 0;
-    setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, (char *)&timeout, sizeof(timeout));
-    int flag = 0;
 
     int packNum;
     if(filesize > -1){
@@ -91,6 +119,9 @@ int main(int argc, char** argv){
       index = 0;
       while(index <= filesize || flag != -1){
         flag = recvfrom(sockfd, &pack, 1028, 0, (struct sockaddr*)&serveraddr, &len);
+        if(pack.i == filesize){
+          continue;
+        }
         //fprintf(stderr, "pack.i: %d\npack.c: %s\n", pack.i, pack.c);
         fprintf(stderr, "pack.i: %d\n", pack.i);
         /*
@@ -106,9 +137,9 @@ int main(int argc, char** argv){
             memcpy(&buffer[pack.i * 1024], pack.c, 1024);
           }
         }
-       if(recvpack[pack.i] != 1){ 
+//       if(recvpack[pack.i] != 1){ 
           sendto(sockfd, &pack.i, sizeof(int), 0, (struct sockaddr*)&serveraddr, len);
-        }
+//        }
         packNum = pack.i; 
         fprintf(stderr, "packNum: %d\n", packNum);
         if(recvpack[pack.i] != 1){
