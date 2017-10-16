@@ -14,6 +14,12 @@ typedef struct{
 
 } packet;
 
+typedef struct{
+  int i;
+  int key;
+  char c[1024];
+} keyPacket;
+
 int findFileSize(char* string){
   int filesize;
   FILE *fp;
@@ -62,13 +68,45 @@ int main(int argc, char** argv){
   while(1){ 
     int len=sizeof(clientaddr);
     int sendsize;
+    fprintf(stderr, "new iteration\n");   
+    struct timeval timeout;
+    timeout.tv_sec = 0;
+    timeout.tv_usec = 200000;
+    setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, (char *)&timeout, sizeof(timeout));
+    int flag = -1;
 
-    recvfrom(sockfd, &sendsize, sizeof(int), 0, (struct sockaddr*)&clientaddr, &len);
-    if(sendsize == 0){
-      recvfrom(sockfd, &sendsize, sizeof(int), 0, (struct sockaddr*)&clientaddr, &len);
+    keyPacket keypack, requestpack;
+    keypack.i = 0;
+    keypack.key = 0;
+    requestpack.i = 0;
+    requestpack.key = 0; 
+    //while(flag == -1){
+    //  flag = recvfrom(sockfd, &keypack, 1032, 0, (struct sockaddr*)&clientaddr, &len);
+    //}
+    while(keypack.key != 1){
+      recvfrom(sockfd, &keypack, 1032, 0, (struct sockaddr*)&clientaddr, &len);
+      if(keypack.i == -1){
+        requestpack.key = -1;
+        sendto(sockfd, &requestpack, 1032, 0, (struct sockaddr*)&clientaddr, len);  
+      }
     }
-    char line[sendsize];
-    recvfrom(sockfd, line, sendsize, 0, (struct sockaddr*)&clientaddr, &len);
+    /*
+    while(flag == -1){
+      requestpack.key = -1;
+      sendto(sockfd, &requestpack, 1032, 0, (struct sockaddr*)&clientaddr, len);  
+      recvfrom(sockfd, &keypack, 1032, 0, (struct sockaddr*)&clientaddr, &len);
+      if(keypack.i == 0){
+        recvfrom(sockfd, &keypack, keypack.i, 0, (struct sockaddr*)&clientaddr, &len);
+      }
+    }
+    while(keypack.key != 1){
+      requestpack.key = -1;
+      sendto(sockfd, &requestpack, 1032, 0, (struct sockaddr*)&clientaddr, len); 
+      recvfrom(sockfd, &keypack, 1032, 0, (struct sockaddr*)&clientaddr, &len);
+    }
+    */
+    char line[keypack.i];
+    strcpy(line, keypack.c);
  
     printf("Got from client: %s\n", line);
     sscanf(line, "%s", line); 
@@ -87,8 +125,14 @@ int main(int argc, char** argv){
       char buffer[sendsize];
       pread(fd, buffer, sizeof(buffer), 0);
       fprintf(stderr, "sendsize: %d\n", sendsize);  
-      sendto(sockfd, &sendsize, sizeof(int), 0, (struct sockaddr*)&clientaddr, len);
-       
+      
+      keypack.i = sendsize;
+      fprintf(stderr, "keypack.i: %d\n", keypack.i);  
+      keypack.key = 2;
+      while(requestpack.key != -2){
+        sendto(sockfd, &keypack, 1032, 0, (struct sockaddr*)&clientaddr, len);
+        recvfrom(sockfd, &requestpack, 1032, 0, (struct sockaddr*)&clientaddr, &len);
+      }
       //char temp[1024];
       int index = 0;
       int packNum = 0;
@@ -126,10 +170,17 @@ int main(int argc, char** argv){
           packNum = notrecv;
           index = 1024 * notrecv;
         }        
-
  	fprintf(stderr,"last ack received: %d\n", ack);
 	fprintf(stderr,"last packNum sent: %d\n\n", packNum-1);
         
+      }
+      flag = 0;
+      while(flag != -1){
+        flag = recvfrom(sockfd, &keypack, 1032, 0, (struct sockaddr*)&clientaddr, &len);
+        flag = recvfrom(sockfd, &keypack, 1032, 0, (struct sockaddr*)&clientaddr, &len);
+        flag = recvfrom(sockfd, &keypack, 1032, 0, (struct sockaddr*)&clientaddr, &len);
+        flag = recvfrom(sockfd, &keypack, 1032, 0, (struct sockaddr*)&clientaddr, &len);
+        flag = recvfrom(sockfd, &keypack, 1032, 0, (struct sockaddr*)&clientaddr, &len);
       }
       index = ack = notrecv = pack.i = packNum = 0;
       close(fd);
