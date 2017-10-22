@@ -119,7 +119,7 @@ int main(int argc, char** argv){
       index = 0;
       while(index <= filesize || flag != -1){
         flag = recvfrom(sockfd, &pack, 1028, 0, (struct sockaddr*)&serveraddr, &len);
-        if(pack.i == filesize){
+        if(pack.i == filesize && index == 0){
           continue;
         }
         fprintf(stderr, "pack.i: %d\n", pack.i);
@@ -134,6 +134,7 @@ int main(int argc, char** argv){
         }
         fprintf(stderr, "packNum: %d\n", packNum);
         if(flag != -1){
+          fprintf(stderr, "SENT SOMETHING\n");
           sendto(sockfd, &pack.i, sizeof(int), 0, (struct sockaddr*)&serveraddr, len);
         }
         packNum = pack.i; 
