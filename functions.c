@@ -1,7 +1,7 @@
-#include "functions.h"
+#include <stdlib.h>
+#include <string.h>
 
-/*
-typedef sturct{
+typedef struct{
   int i;
   char c[1024];
   int checksum;
@@ -13,7 +13,7 @@ typedef struct{
   char c[1024];
   int checksum;
 } keyPacket;
-*/
+
 
 int packchecksum(packet pack){
   int count = 0;
