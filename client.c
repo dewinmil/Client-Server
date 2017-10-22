@@ -64,7 +64,7 @@ int main(int argc, char** argv){
 
     struct timeval timeout;
     timeout.tv_sec = 0;
-    timeout.tv_usec = 200000;
+    timeout.tv_usec = 100000;
     setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, (char *)&timeout, sizeof(timeout));
     int flag = 0;
    
@@ -79,13 +79,13 @@ int main(int argc, char** argv){
       return 1;
     }
     recvfrom(sockfd, &requestpack, 1032, 0, (struct sockaddr*)&serveraddr, &len);
-    if(requestpack.key != 2){
+    while(requestpack.key != 2){
       recvfrom(sockfd, &requestpack, 1032, 0, (struct sockaddr*)&serveraddr, &len);
       if(requestpack.key == 2){
         keypack.key = -2;
         sendto(sockfd, &keypack, 1032, 0, (struct sockaddr*)&serveraddr, len);
       }
-      keypack.key = -1;
+      keypack.key = 1;
       sendto(sockfd, &keypack, 1032, 0, (struct sockaddr*)&serveraddr, len);
     }
     flag == 0;
@@ -122,24 +122,20 @@ int main(int argc, char** argv){
         if(pack.i == filesize){
           continue;
         }
-        //fprintf(stderr, "pack.i: %d\npack.c: %s\n", pack.i, pack.c);
         fprintf(stderr, "pack.i: %d\n", pack.i);
-        /*
-        if(index == 0){ 
-          strcpy(buffer, pack.c);
-        }else{
-          strcat(buffer, pack.c);
-        }*/
         if(recvpack[pack.i] != 1){
-          if(filesize - index < 1024){
-            memcpy(&buffer[pack.i * 1024], pack.c, filesize-index);
+          if(((pack.i+1) * 1024) >= filesize && filesize - index < 1024){
+            fprintf(stderr, "bad memcpy: \n");
+            memcpy(&buffer[pack.i * 1024], pack.c, filesize- index);
           }else{
+            fprintf(stderr, "good memcpy: \n");
             memcpy(&buffer[pack.i * 1024], pack.c, 1024);
           }
         }
-//       if(recvpack[pack.i] != 1){ 
+        fprintf(stderr, "packNum: %d\n", packNum);
+        if(flag != -1){
           sendto(sockfd, &pack.i, sizeof(int), 0, (struct sockaddr*)&serveraddr, len);
-//        }
+        }
         packNum = pack.i; 
         fprintf(stderr, "packNum: %d\n", packNum);
         if(recvpack[pack.i] != 1){
