@@ -130,11 +130,16 @@ int main(int argc, char** argv){
       int notrecv = 0;
       int arrsize = 1 + ((sendsize - 1) / 1024);
       int ackrecv[arrsize];
+      for(checkpack = 0; checkpack < arrsize; checkpack++){
+        ackrecv[checkpack] = 0;
+      }
       //+1 on ack because packNum increments 1 more than is sent
-      while(index <= sendsize || ack+1 < arrsize){
+      while(index <= sendsize || notrecv+1 < arrsize){
         if(ack < 0){
           ack = 0;
         }
+
+
         if(packNum - ack < 6 && index <= sendsize){
           if(temp == -1){
             ack = -1;
@@ -146,14 +151,21 @@ int main(int argc, char** argv){
           }
           pack.i = packNum;
           sendto(sockfd, &pack, sizeof(pack), 0, (struct sockaddr*)&clientaddr, len);
+	  fprintf(stderr,"last packNum sent: %d\n\n", packNum);
           index += 1024;
           packNum++;
         }
+
+
         recvfrom(sockfd, &ack, sizeof(int), MSG_DONTWAIT, (struct sockaddr*)&clientaddr, &len);
         if(ack != -1){
+ 	  fprintf(stderr,"last ack received: %d\n", ack);
+ 	  fprintf(stderr,"notrecv: %d\n", notrecv);
           temp = 0;
           ackrecv[ack] = 1;
 	}
+
+
         for(checkpack = 0; checkpack < arrsize; checkpack++){
           if(ackrecv[checkpack] == 0){
             notrecv = checkpack;
@@ -164,8 +176,6 @@ int main(int argc, char** argv){
           packNum = notrecv;
           index = 1024 * notrecv;
         } 
- 	fprintf(stderr,"last ack received: %d\n", ack);
-	fprintf(stderr,"last packNum sent: %d\n\n", packNum-1);
         
       }
       flag = 0;
