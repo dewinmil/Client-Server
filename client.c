@@ -8,59 +8,7 @@
 #include <sys/types.h>
 #include <stdlib.h>
 #include <arpa/inet.h>
-
-typedef struct{
-  int i;
-  char c[1024];
-  int checksum;
-} packet;
-
-typedef struct{
-  int i;
-  int key;
-  char c[1024];
-  int checksum;
-} keyPacket;
-
-
-int packchecksum(packet pack){
-  int count = 0;
-  int i;
-  for(i = 0; i < strlen(pack.c); i++){
-    count += (int)pack.c[i];
-  }
-  count += pack.i;
-  return count;
-}
-
-
-int keypackchecksum(keyPacket pack){
-  int count = 0;
-  int i;
-  for(i = 0; i < strlen(pack.c); i++){
-    count += (int)pack.c[i];
-  }
-  count += pack.i;
-  count += pack.key;
-  return count;
-}
-
-int checkpackchecksum(packet pack){
-  int count = packchecksum(pack);
-  if(count != pack.checksum){
-    return -1;
-  }
-  return 1;
-}
-
-
-int checkkeypackchecksum(keyPacket pack){
-  int count = keypackchecksum(pack);
-  if(count != pack.checksum){
-    return -1;
-  }
-  return 1;
-}
+#include "functions.h"
 
 
 int main(int argc, char** argv){
@@ -113,27 +61,28 @@ int main(int argc, char** argv){
     keypack.i = filesize;
     keypack.key = 1;
     strcpy(keypack.c, line);
-
-    sendto(sockfd, &keypack, 1032, 0, (struct sockaddr*)&serveraddr, len);
+    keypack.checksum = keypackchecksum(keypack);
+    fprintf(stderr, "checksum: %d\n", keypack.checksum);
+    sendto(sockfd, &keypack, 1036, 0, (struct sockaddr*)&serveraddr, len);
     printf("Sent to server: %s\n", line);
     if(strcmp(line, "exit\n") == 0){
       return 1;
     }
-    recvfrom(sockfd, &requestpack, 1032, 0, (struct sockaddr*)&serveraddr, &len);
+    recvfrom(sockfd, &requestpack, 1036, 0, (struct sockaddr*)&serveraddr, &len);
     while(requestpack.key != 2){
-      recvfrom(sockfd, &requestpack, 1032, 0, (struct sockaddr*)&serveraddr, &len);
+      recvfrom(sockfd, &requestpack, 1036, 0, (struct sockaddr*)&serveraddr, &len);
       if(requestpack.key == 2){
         keypack.key = -2;
-        sendto(sockfd, &keypack, 1032, 0, (struct sockaddr*)&serveraddr, len);
+        sendto(sockfd, &keypack, 1036, 0, (struct sockaddr*)&serveraddr, len);
       }
       keypack.key = 1;
-      sendto(sockfd, &keypack, 1032, 0, (struct sockaddr*)&serveraddr, len);
+      sendto(sockfd, &keypack, 1036, 0, (struct sockaddr*)&serveraddr, len);
     }
     flag == 0;
     while(flag != -1){ 
-      flag = recvfrom(sockfd, &keypack, 1032, 0, (struct sockaddr*)&serveraddr, &len);
+      flag = recvfrom(sockfd, &keypack, 1036, 0, (struct sockaddr*)&serveraddr, &len);
       keypack.key = -2;
-      sendto(sockfd, &keypack, 1032, 0, (struct sockaddr*)&serveraddr, len);
+      sendto(sockfd, &keypack, 1036, 0, (struct sockaddr*)&serveraddr, len);
     }
     filesize = requestpack.i;
     fprintf(stderr, "filesize: %d\n", requestpack.i);
@@ -159,7 +108,7 @@ int main(int argc, char** argv){
       }
       index = 0;
       while(index <= filesize || flag != -1){
-        flag = recvfrom(sockfd, &pack, 1028, 0, (struct sockaddr*)&serveraddr, &len);
+        flag = recvfrom(sockfd, &pack, 1032, 0, (struct sockaddr*)&serveraddr, &len);
         if(pack.i == filesize && index == 0){
           continue;
         }
