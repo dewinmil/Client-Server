@@ -7,43 +7,8 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <stdlib.h>
+#include "functions.h"
 
-typedef struct{
-  int i;
-  char c[1024];
-  int checksum;
-
-} packet;
-
-typedef struct{
-  int i;
-  int key;
-  char c[1024];
-  int checksum;
-} keyPacket;
-
-
-int packchecksum(packet pack){
-  int count = 0;
-  int i;
-  for(i = 0; i < strlen(pack.c); i++){
-    count += (int)pack.c[i];
-  }
-  count += pack.i;
-  return count;
-}
-
-
-int keypackchecksum(keyPacket pack){
-  int count = 0;
-  int i;
-  for(i = 0; i < strlen(pack.c); i++){
-    count += (int)pack.c[i];
-  }
-  count += pack.i;
-  count += pack.key;
-  return count;
-}
 
 int findFileSize(char* string){
   int filesize;
@@ -105,6 +70,12 @@ int main(int argc, char** argv){
     
     while(keypack.key != 1 || keypack.i == 0){
       recvfrom(sockfd, &keypack, 1036, 0, (struct sockaddr*)&clientaddr, &len);
+      if(keypack.key == 1 && keypack.i != 0){
+        if(checkkeypackchecksum(keypack) == -1){
+          keypack.key = -1;
+        }
+      fprintf(stderr, "checksum %d\n", keypack.checksum);
+      }
       //if(keypack.i == -1){
       //  requestpack.key = -1;
       //  sendto(sockfd, &requestpack, 1032, 0, (struct sockaddr*)&clientaddr, len);  
